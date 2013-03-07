@@ -1,0 +1,175 @@
+--This module will make the turtle read a model file and construct the model
+--with the materials it is given.
+
+os.loadAPI('./persistant')
+
+--the directory to search for module files
+dir = '/printer3d'
+
+arg = {...}
+
+--The name of the model
+fileName = ''
+
+--The dimensions of the model
+maxX = 0
+maxY = 0
+maxZ = 0
+
+--The 3d array that holds the model
+content = {}
+
+
+--Parses the model file and loads it into the global variables
+function loadDimensions()
+  f = fs.open(dir .. '/' .. fileName, 'r')
+
+  fileName = arg[1]
+
+  --load dimensions
+  maxX = tonumber(f.readLine())
+  maxY = tonumber(f.readLine())
+  maxZ = tonumber(f.readLine())
+  --initialize content 3d array
+  for i = 1, maxX, 1 do
+    content[i] = {}
+    for j = 1, maxY, 1 do
+      content[i][j] = {}
+    end
+  end
+  
+  --load content
+  for i = 1, maxX, 1 do
+    for j = 1, maxY, 1 do
+      for k = 1, maxZ, 1 do
+        content[i][j][k] = tonumber(f.readLine())
+      end
+    end
+  end
+  f.close()  
+end
+
+function printColumn(currentX, currentY)
+  for currentZ = 1, maxZ, 1 do
+    persistant.forward()
+    printBlock(currentX, currentY, currentZ)
+  end
+  for currentZ = maxZ, 1, -1 do
+    persistant.back()
+  end
+end
+
+function printBlock(currentX, currentY, currentZ)
+  if content[currentX][currentY][currentZ] == 0 then
+    return nil
+  end
+
+  slotNum = content[currentX][currentY][currentZ]
+
+  --find first slot with identical block that has more than one
+  for i = 1, 16, 1 do
+    turtle.select(i)
+    if turtle.compareTo(slotNum) and turtle.getItemCount(i) > 1 then
+      persistant.placeDown()
+      break
+    end
+  end
+end
+
+function printLayer(currentY)
+  for currentX = 1, maxX, 1 do
+    printColumn(currentX, currentY)
+    if currentX < maxX then
+      turtle.turnRight()
+      persistant.forward()
+      turtle.turnLeft()
+    end
+  end
+  turtle.turnLeft()
+  for currentX = maxX - 1, 1, -1 do
+    persistant.forward()
+  end
+  turtle.turnRight()
+end
+
+function printObject()
+  for currentY = 1, maxY, 1 do
+    persistant.up()
+    printLayer(currentY)
+  end
+  for currentY = 1, maxY, 1 do
+    persistant.down()
+  end
+end
+
+--Returns true iff the turtle has enough fuel to perform the print
+function isFuelSufficient()
+  current = turtle.getFuelLevel()
+  required = 2 * maxX * maxY + 2 * maxX * maxY * maxZ
+  return current >= required
+end
+
+--Returns true iff the turtle has the necessary materials that the model
+--requires
+function isMaterialSufficient()
+  required = getRequiredMaterial()
+
+  for i = 1, 16, 1 do
+    current = getNumberOfMaterial(i)
+    if required[i] > 0 and required[i] > current then
+      print('Material in slot ' .. i .. ' insufficient')
+      return false
+    end
+  end
+  return true
+end
+
+--Returns an array of ints representing the materials needed in each slot
+function getRequiredMaterial()
+  -- this holds the material requirement for each slot
+  required = {}
+  for i = 1, 16, 1 do
+    required[i] = 0
+  end
+
+  -- fill required list
+  for i = 1, maxX, 1 do
+    for j = 1, maxY, 1 do
+      for k = 1, maxZ, 1 do
+        if not (content[i][j][k] == 0) then
+          required[content[i][j][k]] = required[content[i][j][k]] + 1
+        end
+      end
+    end
+  end
+  return required
+end
+
+-- Returns the total amount of items in the entire turtle
+-- that match the items in the given slot
+function getNumberOfMaterial(slotNum)
+
+  turtle.select(slotNum)
+
+  count = 0
+  for i = 1, 16, 1 do
+    if turtle.compareTo(i) then
+      count = count + turtle.getItemCount(i) - 1
+    end
+  end
+  return count
+end
+
+function main()
+  loadDimensions()
+  if not isFuelSufficient() then
+    print('Insufficient fuel')
+  elseif not isMaterialSufficient() then
+    print('Insufficient material')
+  else
+    print('Printing')
+    printObject()
+  end
+end
+
+main()

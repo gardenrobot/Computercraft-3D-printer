@@ -1,0 +1,170 @@
+--Scans (and destroys) the blocks in an area. If the materials scanned match
+--this in the turtle's inventory, they will be written to a file. Any other
+--blocks will be discarded.
+
+os.loadAPI('./persistant')
+arg = {...}
+
+--the directory to search for module files
+dir = '/printer3d'
+
+--The name of the model
+fileName = ''
+
+--The dimensions of the model
+maxX = 0
+maxY = 0
+maxZ = 0
+
+--The 3d array that holds the model
+content = {}
+
+--Reads in the comman line arguments and initializes the global variables
+function init(contentFile, x, y, z)
+
+  fileName = arg[1]
+  maxX = tonumber(arg[2])
+  maxY = tonumber(arg[3])
+  maxZ = tonumber(arg[4])
+
+  for i = 1, maxX, 1 do
+    content[i] = {}
+    for j = 1, maxY, 1 do
+      content[i][j] = {}
+      for k = 1, maxZ, 1 do
+        content[i][j][k] = 0
+      end
+    end
+  end
+end
+
+--Writes the data in content to a file
+function writeToFile()
+  if not fs.exists(dir) then
+    fs.makeDir(dir)
+  end
+  
+  f = fs.open(dir .. '/' .. fileName, 'w')
+  f.writeLine(maxX)
+  f.writeLine(maxY)
+  f.writeLine(maxZ)
+     
+  for currentX = 1, maxX, 1 do
+    for currentY = 1, maxY, 1 do
+      for currentZ = 1, maxZ, 1 do
+        blockID = content[currentX][currentY][currentZ]
+          f.writeLine(blockID)
+      end
+    end
+  end    
+  
+  f.close()
+end
+
+--Compares the block in front of the turtle to each block in its inventory. If
+--there is a match, the slot number of the matching block is saved in the 3d
+--array.
+function scanBlock(currentX, currentY, currentZ)
+  if not turtle.detect() then
+    return nil
+  end
+
+  for i = 1, 16, 1 do
+    turtle.select(i)
+    if turtle.compare() then
+      content[currentX][currentY][currentZ] = i
+      break
+    end
+  end
+  turtle.select(1)
+
+  inventory = getInventory()
+  turtle.dig()
+  getInventory()
+  removeExtraFromInventory(inventory)
+end
+
+--Return array with the quantities of the turtle's inventory
+function getInventory()
+  inv = {}
+
+  for i = 1, 16, 1 do
+    inv[i] = turtle.getItemCount(i)
+  end
+  return inv
+end
+
+--Reads in previous inventory state and discards items so that the quantities
+--match the previous state
+function removeExtraFromInventory(inventory)
+  for i = 1, 16, 1 do
+    difference = turtle.getItemCount(i) - inventory[i]
+    if difference > 0 then
+      turtle.select(i)
+      turtle.drop(difference)
+    end
+  end
+  turtle.select(1)
+end
+
+function scanColumn(currentX, currentY)
+  for currentZ = 1, maxZ, 1 do
+    scanBlock(currentX, currentY, currentZ)
+    if currentZ < maxZ then
+      persistant.forward()
+    end
+  end
+  --go back
+  for currentZ = maxZ - 1, 1, -1 do
+    persistant.back()
+  end
+end
+
+function scanLayer(currentY)
+  for currentX = 1, maxX, 1 do
+    scanColumn(currentX, currentY)
+    if currentX < maxX then
+      turtle.turnRight()
+      persistant.forward()
+      turtle.turnLeft()
+    end
+  end
+  
+  turtle.turnLeft()
+  for currentX = 1, maxX - 1, 1 do
+    persistant.forward()
+  end
+  turtle.turnRight()
+end
+
+function scanObject()
+  for currentY = 1, maxY, 1 do
+    --scan layer
+    scanLayer(currentY)
+    --go up
+    if currentY < maxY then
+      persistant.up()
+    end
+  end
+  for currentY = 1, maxY - 1, 1 do
+    persistant.down()
+  end
+end
+
+--Returns true iff the turtle has enough fuel to perform the print
+function isFuelSufficient()
+  required = maxX * maxY * maxZ * 2 - 2
+  return turtle.getFuelLevel() >= required
+end
+
+function main()
+  if not isFuelSufficient() then
+    print('Insufficient fuel')
+  else
+    scanObject()
+    writeToFile()
+  end
+end
+
+init()
+main()

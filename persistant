@@ -1,0 +1,66 @@
+--Peristant is a module that incapsulates the turtle api. Each function will
+--attempt to do its corresponding turtle function until success.
+
+function forward()
+  success = false
+  dugBlock = false
+  while not success do
+    dugBlock = turtle.dig()
+    success = turtle.forward()
+  end
+  return dugBlock
+end
+
+function back()
+  success = turtle.back()
+  dugBlock = false
+  if not success then
+    turtle.turnRight()
+    turtle.turnRight()
+    dugBlock = forward()
+    turtle.turnRight()
+    turtle.turnRight()
+  end
+  return dugBlock
+end
+
+function up()
+  success = false
+  dugBlock = false
+  while not success do
+    dugBlock = turtle.digUp()
+    success = turtle.up()
+  end
+  return dugBlock
+end
+
+function down()
+  success = false
+  dugBlock = false
+  while not success do
+    dugBlock = turtle.digDown()
+    success = turtle.down()
+  end
+  return dugBlock
+end
+
+function place()
+  success = false
+  while not success do
+    success = turtle.place()
+  end
+end
+
+function placeUp()
+  success = false
+  while not success do
+    success = turtle.placeUp()
+  end
+end
+
+function placeDown()
+  success = false
+  while not success do
+    success = turtle.placeDown()
+  end
+end
