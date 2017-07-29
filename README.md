@@ -2,7 +2,7 @@ Computercraft 3D printer
 ------------------------
 
 Author:
-Lucas Clotfelter (BlueLavaSoul)
+Sam Clotfelter
 
 This script will make turtles in computercraft function as 3d printers and scanners
 
